@@ -1,0 +1,147 @@
+1. Креирати поглед са називом View_Staz који приказује име, презиме и посао радника који имају више година стажа од Слободана Петровића.
+ create view View_Staz
+ as
+ select ime, prezime, posao
+ from radnik
+ Where timestampdiff(year,dat_zap,curdate()) > (Select timestampdiff(year,dat_zap,curdate()) FROM RADNIK WHERE ime='Slobodan' AND prezime='Petrović')
+ Select *
+ From View_Staz
+2. Креирати поглед са називом View_Plasman_Dorcol који приказује име и презиме најплаћенијег радника са Дорћола који ради на пројекту Пласман.
+ create view View_Plasman_Dorcol
+ as
+ select ime,prezime,posao
+ from radnik
+ where (plata+ifnull(premija,0)) = (select max(plata+ifnull(premija,0))
+ FROM radnik
+ WHERE id_odeljenja=
+ (SELECT id_odeljenja
+ FROM odeljenje
+ WHERE mesto='Dorćol' and
+ id_radnika in (SELECT id_radnika FROM ucesce WHERE id_projekta = (SELECT id_projekta FROM projekat where
+ Ime_proj='Plasman'))));
+3. Креирати поглед са називом View_Projekti који приказује назив пројекта на коме ради највише радника.
+ create view View_Projekti
+ as
+ select ime_proj
+ from projekat inner join ucesce on projekat.id_projekta=ucesce.id_projekta
+ group by ime_proj
+ order by count(id_radnika) desc
+ limit 1;
+4. Креирати поглед View_Profesor_predmet који приказује називе предмета и име и презиме професора који их предају.
+ Create View View_Profesor_predmet
+ as
+ Select ime,prezime,naziv
+ From Profesor,predmet
+ Where profesor.id_profesora=predmet.id_profesora
+5. Креирати поглед који приказује број уписаних студената по смеровима.
+ Create View View_Broj_Upisanih
+ as
+ Select smer,count(*)
+ FROM student
+ GROUP BY smer
+6. Креирати функцију fun_PreduzeceMaxPlata која враћа највећу плату за задати назив одељења.
+ DELIMITER $$
+ create function fun_PreduzeceMaxPlata(imeOdeljenja char(20))
+ returns float
+ begin
+ declare MaxPlata float;
+ select max(plata) into MaxPlata
+ from radnik inner join odeljenje
+ on radnik.id_odeljenja=odeljenje.id_odeljenja
+ where odeljenje.ime_od=imeOdeljenja;
+ return MaxPlata;
+ END$$
+ DELIMITER ;
+Позив функције:
+ select fun_PreduzeceMaxPlata('Direkcija'); /* vraća najveću platu u Direkciji */
+Пример примене функције:
+ Select *, fun_preduzeceMaxPlata1(ime_od) /* funkcioniše kao petlja, funkciji se redom
+prosleđuju sve vrednosti za ime_od i ona vraća najveću platu za to odeljenje i prikazuje u
+poslednjoj koloni u glavnom upitu */
+ From Odeljenje
+7. Креирати функцију fun_Broj_projekata која враћа на колико пројеката ради радник чији id се задаје.
+ DELIMITER $$
+ create function fun_Broj_projekata(id int)
+ returns int
+ begin
+ declare broj int;
+ Select Count(*) into broj
+ From Ucesce
+ Where id_radnika=id;
+ return broj;
+ END$$
+ DELIMITER ;
+Позив функције:
+ select fun_Broj_projekata(5652)
+8. Креирати функцију fun_Sef_odeljenja која враћа име и презиме шефа одељења за задати назив одељења.
+ DELIMITER $$
+ CREATE function fun_Sef_odeljenja(nazivOdeljenja char(30))
+ returns char
+ begin
+ declare imePrezime char;
+ SELECT concat(ime, ' ' , prezime) into ImePrezime
+ FROM RADNIK
+ WHERE ID_RADNIKA IN (SELECT SEF_ODELJENJA FROM ODELJENJE WHERE NAZIV=nazivOdeljenja);
+ return imePrezime;
+ END$$
+ DELIMITER ;
+9. Креирати функцију са називом fun_Student_prosek који за прослеђен индекс студента враћа његову просечну оцену.
+ DELIMITER $$
+ CREATE function fun_Student_prosek(studProgram char(10), redniBroj int, godinaUpisa int)
+ returns float
+ begin
+ declare prosek float;
+ SELECT AVG(OCENA) INTO prosek
+ FROM ZAPISNIK
+ WHERE ID_STUDENTA IN (SELECT ID_STUDENTA FROM STUDENT WHERE SMER=studProgram AND BROJ=redniBroj
+AND GODINA_UPISA=godinaUpisa);
+ return prosek;
+ END$$
+ DELIMITER ;
+Позив функције:
+ select fun_student_prosek('NRT',33,2020)
+Пример позивања функције у Where:
+Приказати студенте и њихову просечну оцену за студенте чија је просечна оцена мања од просечне оцене
+студента НРТ-33/20
+ Select ime,prezime,AVG(OCENA)
+ From Student,zapisnik
+ Where student.id_studenta=zapisnik.id_studenta
+ Group By ime,prezime
+ HAVING AVG(ocena) < fun_student_prosek('NRT',33,2020)
+10. Креирати функцију са називом fun_Raspored_ispita која за прослеђен назив предмета, испитни рок
+(назив и школска година) враћа датум када се одржава испит из тог предмета у том испитном року.
+ DELIMITER $$
+ CREATE function ffun_Raspored_ispita(nazivPredmeta char(30),nazivRoka char (20), skolskaGodina
+char (10))
+ returns date
+ begin
+ declare datumIspita date;
+ SELECT datum into datumIspita
+ FROM ispit
+ Where id_predmeta IN (SELECT ID_predmeta From Predmet Where naziv=nazivPredmeta) AND id_ispita
+IN (SELECT Id_ispita FROM ispitni_rok Where naziv=nazivRoka AND skolska_god=SkolskaGodina);
+ return datumIspita;
+ END$$
+ DELIMITER ;
+11. Креирати функцију fun_Predmet_prosek која за прослеђен ID предмета враћа просечну оцену на том предмету.
+ DELIMITER $$
+ CREATE function fun_Predmet_prosek(idPredmeta int)
+ returns float
+ begin
+ declare prosek float;
+ SELECT AVG(OCENA) INTO prosek
+ FROM ZAPISNIK
+ WHERE id_ispita iN (SELECT Id_ispita From ispit where id_predmeta=idPredmeta);
+ return prosek;
+ END$$
+ DELIMITER ;
+Позив функције:
+ Select fun_predmet_prosek(2569)
+Примена функције:
+12. Приказати ид_студента, име,презиме смер и називе предмета које су студенти положили, само за оне
+студенте који су предмет положили са оценом већом од просечне оцене на том предмету.
+ Select student.id_studenta,ime,prezime,smer,naziv,ocena
+ From Student,predmet,zapisnik,ispit
+ Where student.id_studenta=zapisnik.id_studenta AND predmet.id_predmeta=ispit.id_predmeta 
+ AND zapisnik.id_ispita=ispit.id_ispita
+ AND OCENA > fun_predmet_prosek(predmet.id_predmeta) 
