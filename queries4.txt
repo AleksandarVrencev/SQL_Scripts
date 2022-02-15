@@ -1,0 +1,88 @@
+1. Преместити радника Божидара Ристића у одељење 20.
+ UPDATE RADNIK
+ Set id_odeljenja=20
+ Where ime='Božidar' AND prezime='Ristić'
+2. Радницима из одељења продаја повећати плату 5%.
+ UPDATE RADNIK
+ SET plata=plata*1.05
+ Where id_odeljenja IN (Select id_odeljenja From Odeljenje Where ime_od='Prodaja')
+3. Обрисати премију раднику Јовану Перићу.
+ UPDATE RADNIK
+ SET premija = null
+ Where ime='Jovan' and prezime='Perić'
+4. Радницима који раде на Бановом Брду, и ангажовани су на пројектима Пласман или
+Пројектовање, повећати премију за 100, а плату за 200.
+ UPDATE RADNIK
+ SET premija=premija+100 , plata=plata+200
+ WHERE id_odeljenja IN (SELECT id_odeljenja From Odeljenje WHere mesto='Banovo brdo') AND id_radnika IN (Select id_radnika From Ucesce Where id_Projekta IN
+ (SELECT id_projekta FROM Projekat Where ime_proj IN ('Plasman','Projektovanje')))
+5. Повећати средства за 20% за све пројекте на којима ради више од 6 радника.
+ UPDATE Projekat
+ SET Sredstva=sredstva*1.2
+ Where id_projekta IN (Select id_projekta From Ucesce Group By id_projekta Having Count(*) > 6)
+6. Смањити плату 10% радницима који имају примања већа од 3000.
+ UPDATE RADNIK
+ SET plata=plata*0,9
+ Where plata+ifnull(premija,0)>3000
+7. Поставити Мирјану Димић за шефа одељења Комерцијала.
+ UPDATE Odeljenje
+ SET sef_odeljenja=(Select id_radnika From Radnik Where ime='Mirjana' AND prezime='Dimić')
+ Where ime_od='Komercijala'
+8. Додати податке о новом раднику, чије је име Стефан Лазић, квалификација VSS, плата 1500.
+Остали подаци нису познати.
+ INSERT INTO RADNIK (id_radnika,ime-prezime,kvalif,plata)
+ Values (1234,'Stefan','Lazić','VSS',1500)
+ /* drugi nacin */
+ INSERT INTO RADNIK
+ VALUES(1234,'Stefan','Lazić',null,'VSS',null,null,null,1500,null)
+9. Додати на пројекат Извоз радника чији је идентификациони број 5900.
+ INSERT INTO Ucesce (id_radnika,id_projekta)
+ Select 5900, id_projekta From Projekat Where ime_proj='Izvoz'
+10. Обрисати са пројекта Увоз раднике чија су примања од 1900 до 2600.
+ DELETE
+ FROM UCESCE
+ Where id_radnika IN (Select id_radnika From Radnik where plata+ifnull(premija,0) between 1900 and 2600)
+ AND id_projekta IN (Select id_projekta From Projekat Where ime_proj='Uvoz')
+11. Пребацити раднике са платом већом од 2000 у одељење Комерцијала.
+ UPDATE Radnik
+ SET id_odeljenja = (Select id_Odeljenja FRom Odeljenje Where ime_od='Komercijala')
+ Where plata=2000
+12. Обрисати са пројеката све раднике чија је квалификација KV и раде у одељењу Продаја.
+ DELETE
+ FROM UCESCE
+ WHere id_radnika IN (SELECT id_radnika From Radnik Where kvalif='kV' AND id_odeljenja IN 
+ (SELECT id_odeljenja From Odeljenje Where ime_od='Prodaja'))
+13. Обрисати податке о раднику Стефану Лазићу.
+ DELETE
+ FROM RADNIK
+ WHERE ime='Stefan' and prezime='Lazić'
+14. Обрисати податке о раднику Митру Вуковићу.
+ DELETE
+ FROM RADNIK
+ WHERE ime='Mitar' and prezime='Vuković'
+15. Променити професора на предмету Микроконтролери . Нови професор треба бити Жељко Јокић.
+ UPDATE PREDMET
+ SET id_profesora=(SELECT id_Profesora From Profesor WHere ime='Željko' AND prezime='Jokić')
+ WHERE naziv='Mikrokontroleri'
+16. Променити статус предмета Апликативни софтвер у обавезан.
+ UPDATE PREDMET
+ SET status='Obavezan'
+ WHERE naziv='Aplikativni softver'
+17. Додати нови ванредни испитни рок Децембар у школској 2020/21.
+ INSERT INTO Ispitni_rok
+ Values(null,'Decembar','2020/21','vanredni')
+18. За студента Марка Бакића додати предмет Аналогна електроника у шк. 2019/20.
+ INSERT INTO Student_predmet
+ Select id_studenta, (Select id_predmeta From Predmet Where naziv='ANalogna elektronika'),'2019/20' 
+ From Student Where ime='Marko' AND prezime='Bakić'
+19. Креирати табелу Дипломци са истом структуром као и табела Студент и у њу ископирати
+студенте који су положили више од 5 предмета.
+ Create table Diplomci as
+ Select *
+ From Student
+ Where id_studenta in (Select id_studenta From zapisnik Where ocena>5 Group by id_studenta Having Count(*)>5)
+20. У већ постојећу табелу Дипломци ископирати податке о студенту Браниславу Вулетићу
+ INSERT INTO DIPLOMCI
+ SELECT *
+ FROM STUDENT
+ WHERE Ime='Branislav' AND prezime='Vuletić'
