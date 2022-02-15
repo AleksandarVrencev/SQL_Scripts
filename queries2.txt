@@ -1,0 +1,110 @@
+1.Приказати раднике који обављају исти посао као Митар Вуковић.
+ Select *
+ FROM Radnik
+ Where posao = (SELECT posao FROM Radnik Where ime='Mitar' and prezime='Vuković')
+2.Приказати раднике који имају плату већу од Јанка Симића.
+ Select *
+ From Radnik
+ Where plata > (Select plata From Radnik Where ime ='Janko' AND prezime='Simić')
+3.Приказати раднике који су се запослили после Милоша Марковића.
+ Select *
+ From Radnik
+ Where dat_zap > (Select dat_zap From Radnik Where ime ='Miloš' AND prezime='Marković')
+ Приказати раднике који раде у истом одељењу као и Андрија Ристић.
+ Select *
+ From Radnik
+ Where id_odeljenja = (Select id_odeljenja From Radnik Where ime='Andrija' AND prezime='Ristić')
+4.Приказати раднике који примања већа од просечних примања у одељењу Продаја.
+ Select *
+ From Radnik
+ Where plata+ifnull(premija,0) > (Select AVG(plata+ifnull(premija,0)) From Radnik Where id_odeljenja IN (Select id_odeljenja From Odeljenje Where ime_od='Prodaja'))
+5.Приказати раднике који раде на пројектима на којима ради мање од 3 радника.
+ Select *
+ From Radnik,ucesce
+ Where radnik.id_radnika=ucesce.id_radnika AND id_projekta IN (Select id_projekta From Ucesce Group By id_projekta Having Count(*)<3)
+////*** drugi nacin **////
+ Select *
+ From radnik,ucesce
+ Where radnik.id_radnika=ucesce.id_radnika
+ Group by id_projekta
+ Having COUNT(*)<3
+6.Приказати раднике који раде на више пројеката од радника Митра Вуковића.
+ Select *
+ From Radnik,ucesce
+ Where radnik.id_radnika=ucesce.id_radnika
+ GROUP BY id_radnika
+ HAVING COUNT(*) > (Select COUNT(*) FROM UCESCE WHERE id_radnika IN (Select id_radnika From Radnik Where ime='Mitar' AND prezime='Vuković')
+7.Приказати називе пројеката на којима не ради ниједан радник.
+ Select ime_proj
+ From projekat
+ Where id_projekta NOT IN (Select id_projekta From Ucesce)
+8.Приказати називе пројеката на којима раде радници чија је плата већа од 2000.
+ Select ime_proj
+ From projekat,ucesce
+ Where projekat.id_projekta=ucesce.id_projekta AND id_radnika IN (Select id_radnika From Radnik Where plata >2000)
+////*** drugi nacin **////
+ Select ime_proj
+ From projekat,ucesce,radnik
+ Where projekat.id_projekta=ucesce.id_projekta AND ucesce.id_radnika=radnik.id_radnika
+ AND plata >2000
+9.Приказати раднике и пројекатe на којима раде само за раднике који су руководиоци.
+ Select *
+ From Radnik,Ucesce,Projekat
+ Where radnik.id_radnika=ucesce.id_radnika AND ucesce.id_projekta=projekat.id_projekta AND radnik.id_radnika IN (Select rukovodilac From Radnik)
+10.Приказати име и презиме студената који студирају исти смер као Виолета Грујић
+ Select ime,prezime
+ From Student
+ Where Smer = (Select Smer From Student Where ime='Violeta' and prezime= 'Grujić')
+11.Приказати име, презиме, смер број и годину уписа у једној колони, за студенте који имају већи број бодова од Алексе Тодоровића на испиту Оперативни системи 1.
+ Select ime,prezime, Concat(smer,'-',broj,'/',SUBSTRING(godina_upisa,3,2)) as Indeks
+ From student,student_predmet,predmet,zapisnik,ispiti,ispitni_rok
+ Where student.id_studenta=student_predmet.id_studenta AND predmet.id_predmeta=student_predmet.id_predmeta AND zapisnik.id_ispita=ispiti.id_ispita 
+ AND zapisnik.id_studenta=student.id_studenta AND ispiti.id_roka=ispitni_rok.id_roka AND predmet.id_predmeta=ispiti.id_predmeta 
+ AND predmet.naziv='Operativni sistemi 1' AND bodovi > (SELECT BODOVI FROM ZAPISNIK WHERE id_studenta IN 
+ (SELECT Id_studenta FROM STUDENT Where ime='ALeksa' AND prezime='Todorović') AND id_ispita IN 
+ (Select id_ispita FROM ISPITI WHERE id_predmeta IN (SELECT ID_predmeta FROM Predmet WHERE naziv='Operativni sistemi 1')))
+////*** drugi nacin **////
+ Select ime, prezime, concat(smer , " - " , broj , "/" , SUBSTRING(godina_upisa,3,2)) as Indeks,bodovi
+ From Student,zapisnik,predmet,ispit
+ Where student.id_studenta=zapisnik.id_studenta AND zapisnik.id_ispita=ispit.id_ispita AND ispit.id_predmeta=predmet.id_predmeta
+ AND naziv="Operativni sistemi 1" AND bodovi > (Select bodoviFrom zapisnik Where id_studenta IN 
+ (select id_studenta From Student Where ime='Aleksa' AND prezime='Todorović')
+ AND id_ispita IN (select id_ispita From ispit Where id_predmeta IN 
+ (Select id_predmeta From Predmet Where naziv='Operativni sistemi 1')))
+12.Приказати студенте чија је просечна оцена већа од просечне оцене на нивоу Школе.
+ Select ime,prezime, AVG(OCENA)
+ From student,zapisnik
+ Where student.id_studenta=zapisnik.id_studenta
+ Group by student.id_studenta
+ HAVING AVG(OCENA) > (SELECT AVG(OCENA) FROM ZAPISNIK)
+13.Приказати студенте чија је оцена из предмета Програмски језици већа од просечне оцене на том предмету у испитном року Јун 2018/19.
+ Select *
+ From Student,zapisnik,ispiti,predmet
+ Where student.id_studenta=zapisnik.id_studenta AND zapisnik.id_ispita=ispiti.id_ispita 
+ AND ispiti.id_predmeta=predmet.id_predmeta
+ AND naziv='Programski jezici' AND ocena > (SELECT AVG(OCENA) FROM ZAPISNIK WHERE ID_ISPITA IN
+ (SELECT ID_ISPITA FROM ISPITI WHERE
+ ID_PREDMETA = ( SELECT ID_PREDMETA FROM PREDMET WHERE NAZIV='Programski jezici')
+ AND ID_ROKA IN ( SELECT ID_ROKA FROM ISPITNI_ROK WHERE NAZIV ='JUN' AND SKOLSKA_GOD='2018/19')))
+14.Приказати студенте који су положили предмет Програмирање рачунарских игара у истом року кад и студент Лазар Марковић.
+ Select *
+ From student,zapisnik
+ Where student.id_studenta=zapisnik.id_studenta
+ AND zapisnik.id_ispita = (
+ Select id_ispita
+ From ispiti
+ Where id_ISPITA IN (SELECT ID_ISPITA FROM ZAPISNIK WHERE ID_STUDENTA IN
+ (SELECT ID_STUDENTA FROM STUDENT WHERE ime='lazar' AND prezime='marković'))
+ AND id_predmeta IN (SELECT id_predmeta FROM predmet Where naziv='Programiranje računarskih igara')) JOIN
+15.Приказати име и презиме радника , назив одељења у коме раде укључујући и одељења у којима нема радника.
+ Select ime,prezime,ime_od
+ From ODELJENJE LEFT JOIN RADNIK ON odeljenje.id_odeljenja=radnik.id_odeljenja
+ ///**** drugi nacin *///
+ Select ime,prezime,ime_od
+ From RADNIK RIGHT JOIN ODELJENJE ON Odeljenje.id_odeljenja=radnik.id_odeljenja
+16.Приказати име и презиме радника, назив одељења у коме раде укључујући и раднике који не раде ни у једном одењењу.
+ Select ime,prezime,ime_od
+ From RADNIK LEFT JOIN ODELJENJE ON Odeljenje.id_odeljenja=radnik.id_odeljenja
+ ///**** drugi nacin *///
+ Select ime,prezime,ime_od
+ From ODELJENJE RIGHT JOIN RADNIK ON odeljenje.id_odeljenja=radnik.id_odeljenja
