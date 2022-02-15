@@ -1,0 +1,147 @@
+1. Prikazati imena zaposlenih koji rade na istim projektima kao Andrija.
+SELECT ime
+FROM radnik
+WHERE id_radnika IN
+ (SELECT Id_radnika FROM ucesce
+WHERE Id_projekta IN
+ (SELECT Id_projekta FROM ucesce
+ WHERE Id_radnika IN
+ (SELECT Id_radnikaFROM radnik
+ WHERE ime='Andrija')))
+AND ime<>'Andrija';
+
+2. Prikazati prosečna primanja zaposlenih po odeljenjima, samo za odeljenja u kojima je
+prosek veći od 2800.
+SELECT ime_od, ROUND(AVG(plata+IFNULL(premija,0)),1) AS Prosek
+FROM odeljenje,radnik
+WHERE odeljenje.Id_odeljenja=radnik.Id_odeljenja
+GROUP BY ime_od
+HAVING AVG(plata+IFNULL(premija,0))>2800
+
+3. Prikazati imena projekata i broj zaposlenih angažovanih na njima, za projekte na kojima
+je angažovano između 1 i 3 zaposlenih (uključujući i te vrednosti).
+SELECT ime_proj, COUNT(*) as broj
+FROM projekat, ucesce
+WHERE projekat.Id_projekta=ucesce.Id_projekta
+GROUP BY ime_proj
+HAVING COUNT(*) BETWEEN 1 AND 3;
+
+4. Prikazati sve podatke o odeljenjima u kojima ima zaposlenih radnika.
+SELECT *
+FROM ODELJENJE
+WHERE id_odeljenja IN
+ (SELECT Id_odeljenja
+ FROM radnik
+ WHERE Id_odeljenja IS NOT NULL);
+
+5. Prikazati imena zaposlenih i njihova ukupna primanja za zaposlene čija su ukupna
+primanja manja od 2000 ili veća od 3000, ime im počinje slovom ‘M’ ili ‘P’, a zaposleni
+su u odeljenju Plan. Rezultate urediti po ukupnim primanjima u rastućem redosledu.
+SELECT ime, plata+IFNULL(premija,0) AS primanja
+FROM radnik
+WHERE ( (plata+IFNULL(premija,0))<2000 OR (plata+IFNULL(premija,0))>3000)
+AND (ime like 'm%' OR ime like 'p%')
+AND Id_odeljenja IN
+ (SELECT Id_odeljenja
+ FROM odeljenje
+ WHERE ime_od='Plan')
+ORDER BY plata+IFNULL(premija,0);
+
+6. Prikazati projekte na kojima radi Vanjin šef.
+SELECT ime_proj
+FROM projekat
+WHERE Id_projekta in
+ (SELECT Id_projekta
+ FROM ucesce WHERE Id_radnika in
+ (SELECT rukovodilac FROM radnik
+ WHERE ime='Vanja'));
+
+7. Prikazati imena i poslove radnika, kao i broj i imena projekata na kojima rade, uključujući
+i radnike koji ne rade ni na jednom projektu.
+SELECT RADNIK.ime, RADNIK.posao, PROJEKAT.id_projekta,
+PROJEKAT.ime_proj
+FROM RADNIK JOIN UCESCE
+ON RADNIK.Id_radnika=UCESCE.Id_radnika
+RIGHT JOIN PROJEKAT
+ON PROJEKAT.Id_projekta=UCESCE.Id_projekta;
+
+8. Zaposlenima čija je kvalifikacija KV ukinuti angažovanje na projektima na kojima imaju
+funkciju izvršioca.
+DELETE
+FROM ucesce
+WHERE funkcija='izvršilac'
+AND id_radnika IN (SELECT id_radnika
+ FROM radnik
+ WHERE kvalif='KV');
+
+9. Povećati sredstva 10% za projekte na kojima radi Pavle.
+update projekat
+set sredstva=sredstva*1.1
+where id_projekta in (select id_projekta from ucesce
+where id_radnika in
+ (select id_radnika
+ from radnik
+ where ime ='Pavle'));
+
+10. Dodati podatke o novom radniku Milan Milananoviću koji nema rukovodioca, ima platu
+od 33000 i premiju 5000. Ostali podaci nisu poznati.
+INSERT INTO radnik (id_radnika, ime, prezime, plata, premija)
+VALUES (7788,'Milan','Milanović', 33000, 5000);
+
+11. U već postojeću tabelu KVALIFIKACIJA, čiji su atributi IDBR, IME, POSAO, PLATA i
+PREMIJA dodati dodati podatke o radnicima koji imaju kvalifikaciju VKV ili KV.
+insert into kvalifikacija (idbr, ime, plata,premija)
+select id_radnika, ime, plata, premija
+from radnik
+where kvalif in ('VKV','KV');
+
+12. Kreirati pogled (VIEW) koji prikazuje ime zaposlenog, datum zaposlenja, platu i mesto u
+kome radi za zaposlene čija je kvalifikacija VKV ili ne primaju premiju. Rezultate urediti
+po plati u rastućem redosledu.
+CREATE VIEW zadatak AS
+SELECT ime, dat_zap, plata, mesto
+FROM odeljenje, radnik
+WHERE odeljenje.id_odeljenja=radnik.id_odeljenja
+AND (kvalif='VKV' OR premija is null)
+ORDER BY plata;
+
+13. Prikazati ime, prezime, smer studenta koji su u školskoj 2019/20. godini birali predmet
+Baze podataka.
+select ime, prezime, smer
+from student
+where id_studenta in
+(select id_studenta from student_predmet where id_predmeta=(select
+id_predmeta from predmet where naziv='Baze podataka') and
+skolska_godina='2019/20');
+
+14. Prikazati prosečne ocene po predmetima u januarskom ispitnom roku šk.2018/19
+Select predmet.naziv, avg(ocena)
+from predmet, ispit, zapisnik, ispitni_rok
+where predmet.ID_PREDMETA=ispit.ID_PREDMETA and
+ispit.ID_ISPITA=zapisnik.ID_ISPITA and ispit.ID_ROKA=ispitni_rok.ID_ROKA
+and ispitni_rok.naziv='Januar' and ispitni_rok.SKOLSKA_GOD='2018/19'
+group by zapisnik.id_ispita;
+
+15. U školskoj 2018/19. godini, za studenta Lazara Markovića zameniti predmet Veb dizajn
+sa predmetom Baze podataka.
+update student_predmet
+set id_predmeta=(select id_predmeta from predmet where naziv='Baze podataka')
+where ID_PREDMETA=(select id_predmeta from predmet where naziv='Veb dizajn')
+and id_studenta = (select id_studenta from student where ime='Lazar' and
+prezime='Marković')
+and skolska_godina='2018/19';
+
+16. Kreirati funkciju fun_prosek koja vraća prosečnu ocenu na osnovu unetog naziva i
+datuma održavanja ispita.
+DELIMITER $$
+create function prosek(nazivI varchar(20), datum date)
+returns float
+begin
+declare prosecnaOc float;
+set prosecnaOc=(select AVG(ocena)
+from ispit, zapisnik
+where ispit.id_ispita=zapisnik.id_ispita and
+ocena NOT IN (3,4,5) and nazivI=naziv and datum=datum_polaganja);
+return prosecnaOc;
+END$$
+DELIMITER ;
