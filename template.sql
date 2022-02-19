@@ -1,0 +1,17 @@
+SELECT
+FROM
+WHERE
+ORDER BY
+HAVING
+GROUP BY
+AVG()
+COUNT()
+MIN()
+MAX()
+AS
+plata + IFNULL(premija,0)
+YEAR(dat_zap)
+BETWEEN 
+AND
+IN
+OR
